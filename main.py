@@ -63,9 +63,11 @@ def get_members(client, members_dict, organization, pages_to_get):
     ret = graphql_call(query, variables)
     if DEBUG:
         print(ret)
-    add_member_data(ret['data']['organization']['membersWithRole']['edges'])
-    has_next_page = ret['data']['organization']['membersWithRole']['pageInfo']['hasNextPage']
-    end_cursor = ret['data']['organization']['membersWithRole']['pageInfo']['endCursor']
+    members_with_roles = ret['data']['organization']['membersWithRole']
+    add_member_data(members_with_roles['edges'])
+    page_info = members_with_roles['pageInfo']
+    has_next_page = page_info['hasNextPage']
+    end_cursor = page_info['endCursor']
 
     while has_next_page:
         query = """
@@ -93,9 +95,11 @@ def get_members(client, members_dict, organization, pages_to_get):
         ret = graphql_call(query, variables)
         if DEBUG:
             print(ret)
-        add_member_data(ret['data']['organization']['membersWithRole']['edges'])
-        has_next_page = ret['data']['organization']['membersWithRole']['pageInfo']['hasNextPage']
-        end_cursor = ret['data']['organization']['membersWithRole']['pageInfo']['endCursor']
+        members_with_roles = ret['data']['organization']['membersWithRole']
+        add_member_data(members_with_roles['edges'])
+        page_info = members_with_roles['pageInfo']
+        has_next_page = page_info['hasNextPage']
+        end_cursor = page_info['endCursor']
 
     # basic sanity check on number of returned items and size of members_dict
     total_count_returned = ret['data']['organization']['membersWithRole']['totalCount']
@@ -151,9 +155,11 @@ def get_repos_and_perms(client, list_of_repos, organization, pages_to_get):
     ret = graphql_call(query, variables)
     if DEBUG:
         print(ret)
-    list_of_repos.extend(ret['data']['organization']['repositories']['edges'])
-    has_next_page = ret['data']['organization']['repositories']['pageInfo']['hasNextPage']
-    end_cursor = ret['data']['organization']['repositories']['pageInfo']['endCursor']
+    repositories = ret['data']['organization']['repositories']
+    list_of_repos.extend(repositories['edges'])
+    page_info = repositories['pageInfo']
+    has_next_page = page_info['hasNextPage']
+    end_cursor = page_info['endCursor']
 
     while has_next_page:
         query = """
@@ -187,8 +193,7 @@ def get_repos_and_perms(client, list_of_repos, organization, pages_to_get):
         ret = graphql_call(query, variables)
         if DEBUG:
             print(ret)
-        #list_of_repos.extend(ret['data']['organization']['repositories']['edges'])
-
+        repositories = ret['data']['organization']['repositories']
         '''
         Without the below, the error lists at the bottom of returned pages trigger exceptions.
         This maybe due to the API key not having permissions enough on certain repositories but 
@@ -196,12 +201,13 @@ def get_repos_and_perms(client, list_of_repos, organization, pages_to_get):
         maybe to handle this condition.
         '''
         try:
-            list_of_repos.extend(ret['data']['organization']['repositories']['edges'])
+            list_of_repos.extend(repositories['edges'])
         except KeyError as e:
             print(f'Error: {e}')
 
-        has_next_page = ret['data']['organization']['repositories']['pageInfo']['hasNextPage']
-        end_cursor = ret['data']['organization']['repositories']['pageInfo']['endCursor']
+        page_info = repositories['pageInfo']
+        has_next_page = page_info['hasNextPage']
+        end_cursor = page_info['endCursor']
 
     # basic sanity check on number of returned items and size of list_of_repos
     total_count_returned = ret['data']['organization']['repositories']['totalCount']
@@ -308,7 +314,7 @@ if __name__ == '__main__':
     addtl_column_headings = process_repo_list(list_of_repos, members_dict)
 
     if sort_columns:
-        column_headings = sorted(addtl_column_headings, key=lambda i: i.casefold())
+        addtl_column_headings = sorted(addtl_column_headings, key=lambda i: i.casefold())
 
     # add repo.names to base csv columns
     csv_columns = base_csv_columns + addtl_column_headings
